@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Sauce Tracker</title>
+<style>
+  :root {
+    --char: #2b1d16;
+    --char-light: #3d2a20;
+    --cream: #fdf6ec;
+    --cream-dark: #f2e6d3;
+    --ember: #e8602c;
+    --ember-dark: #c4481c;
+    --mustard: #e8a93c;
+    --sage: #7a9d6f;
+    --text: #2b1d16;
+    --muted: #8a7866;
+    --shadow: rgba(43, 29, 22, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(180deg, var(--cream) 0%, var(--cream-dark) 100%);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 90px;
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--char);
+    color: var(--cream);
+    padding: 18px 20px 14px;
+    box-shadow: 0 2px 10px var(--shadow);
+  }
+
+  header .top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 22px;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .icon-btn {
+    background: rgba(255,255,255,0.08);
+    border: none;
+    color: var(--cream);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,0.18); }
+
+  .controls {
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .pill {
+    border: 1px solid rgba(255,255,255,0.25);
+    background: transparent;
+    color: var(--cream);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .pill.active {
+    background: var(--ember);
+    border-color: var(--ember);
+    font-weight: 600;
+  }
+
+  select.sort-select {
+    margin-left: auto;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: var(--cream);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  select.sort-select option { color: #000; }
+
+  .search-row {
+    margin-top: 10px;
+  }
+  .search-row input {
+    width: 100%;
+    padding: 9px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.08);
+    color: var(--cream);
+    font-size: 14px;
+  }
+  .search-row input::placeholder { color: rgba(253,246,236,0.5); }
+
+  main {
+    padding: 16px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .sync-banner {
+    background: var(--mustard);
+    color: var(--char);
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    text-align: center;
+    display: none;
+  }
+  .sync-banner.show { display: block; }
+  .sync-banner.error { background: #e76b5c; color: #fff; }
+
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    padding: 60px 20px;
+  }
+  .empty-state .emoji { font-size: 48px; display: block; margin-bottom: 10px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px var(--shadow);
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.12s;
+    display: flex;
+    flex-direction: column;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px var(--shadow);
+  }
+
+  .card-photo {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    background: var(--cream-dark);
+  }
+  .card-photo.placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+  }
+
+  .card-body { padding: 12px 14px 14px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+
+  .card-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .card-title { font-weight: 700; font-size: 16px; line-height: 1.25; }
+
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge.bbq { background: #f1ddc8; color: var(--ember-dark); }
+  .badge.hot { background: #fde0db; color: #c43d2a; }
+
+  .stars { color: var(--mustard); font-size: 15px; letter-spacing: 1px; }
+  .stars .empty { color: #e3dacb; }
+
+  .heat-row { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+
+  .notes-preview {
+    font-size: 13px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: var(--ember);
+    color: #fff;
+    border: none;
+    font-size: 28px;
+    box-shadow: 0 4px 14px rgba(232,96,44,0.45);
+    cursor: pointer;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.12s;
+  }
+  .fab:hover { transform: scale(1.06); }
+
+  /* Modal */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(43,29,22,0.45);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 30;
+  }
+  .overlay.show { display: flex; }
+  @media (min-width: 640px) {
+    .overlay { align-items: center; }
+  }
+
+  .modal {
+    background: var(--cream);
+    width: 100%;
+    max-width: 480px;
+    max-height: 92vh;
+    overflow-y: auto;
+    border-radius: 18px 18px 0 0;
+    padding: 22px 20px 24px;
+    animation: slideUp 0.2s ease-out;
+  }
+  @media (min-width: 640px) {
+    .modal { border-radius: 18px; }
+  }
+  @keyframes slideUp {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .modal h2 { margin: 0 0 16px; font-size: 19px; }
+
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--char-light);
+  }
+  .field input[type=text], .field textarea, .field select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--cream-dark);
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: inherit;
+    background: #fff;
+  }
+  .field textarea { resize: vertical; min-height: 70px; }
+
+  .type-toggle { display: flex; gap: 8px; }
+  .type-toggle button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--cream-dark);
+    background: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .type-toggle button.active.bbq { background: #f1ddc8; border-color: var(--ember-dark); color: var(--ember-dark); }
+  .type-toggle button.active.hot { background: #fde0db; border-color: #c43d2a; color: #c43d2a; }
+
+  .star-input { display: flex; gap: 6px; font-size: 30px; cursor: pointer; }
+  .star-input span { color: #e3dacb; transition: color 0.1s; }
+  .star-input span.filled { color: var(--mustard); }
+
+  .heat-input { display: flex; gap: 6px; font-size: 26px; cursor: pointer; }
+  .heat-input span { filter: grayscale(1) opacity(0.35); transition: all 0.1s; }
+  .heat-input span.filled { filter: none; opacity: 1; }
+
+  .photo-input {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .photo-preview {
+    width: 64px;
+    height: 64px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: var(--cream-dark);
+  }
+  .photo-input label.upload-btn {
+    background: var(--cream-dark);
+    padding: 9px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--char-light);
+  }
+  .photo-input input[type=file] { display: none; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn.primary { background: var(--ember); color: #fff; }
+  .btn.secondary { background: var(--cream-dark); color: var(--char); }
+  .btn.danger { background: #fff; color: #c43d2a; border: 1px solid #f3c9c2; flex: 0 0 auto; padding: 12px 16px; }
+
+  /* Settings modal */
+  .settings-field input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--cream-dark);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: monospace;
+  }
+  .settings-help {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  .settings-help a { color: var(--ember-dark); }
+  .status-line {
+    font-size: 13px;
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--cream-dark);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top-row">
+    <h1>🔥 Sauce Tracker</h1>
+    <div style="display:flex; gap:8px;">
+      <button class="icon-btn" id="syncBtn" title="Sync now">⟳</button>
+      <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="pill active" data-filter="all">All</button>
+    <button class="pill" data-filter="BBQ">BBQ Sauce</button>
+    <button class="pill" data-filter="Hot Sauce">Hot Sauce</button>
+    <select class="sort-select" id="sortSelect">
+      <option value="recent">Newest first</option>
+      <option value="rating">Highest rated</option>
+      <option value="heat">Spiciest first</option>
+      <option value="name">Name A–Z</option>
+    </select>
+  </div>
+  <div class="search-row">
+    <input type="text" id="searchInput" placeholder="Search by name or notes…">
+  </div>
+</header>
+
+<main>
+  <div class="sync-banner" id="syncBanner"></div>
+  <div id="emptyState" class="empty-state" style="display:none;">
+    <span class="emoji">🌶️</span>
+    No sauces yet — tap the + button to add your first rating!
+  </div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<button class="fab" id="addBtn">+</button>
+
+<!-- Add/Edit modal -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">Add Sauce</h2>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="fieldName" placeholder="e.g. Stubb's Original BBQ">
+    </div>
+    <div class="field">
+      <label>Type</label>
+      <div class="type-toggle">
+        <button type="button" class="bbq" data-type="BBQ">🍖 BBQ Sauce</button>
+        <button type="button" class="hot" data-type="Hot Sauce">🌶️ Hot Sauce</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Rating</label>
+      <div class="star-input" id="ratingInput">
+        <span data-val="1">★</span><span data-val="2">★</span><span data-val="3">★</span><span data-val="4">★</span><span data-val="5">★</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Heat level</label>
+      <div class="heat-input" id="heatInput">
+        <span data-val="1">🌶️</span><span data-val="2">🌶️</span><span data-val="3">🌶️</span><span data-val="4">🌶️</span><span data-val="5">🌶️</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="fieldNotes" placeholder="Tasting notes, where you got it, what to pair it with…"></textarea>
+    </div>
+    <div class="field">
+      <label>Photo</label>
+      <div class="photo-input">
+        <img id="photoPreview" class="photo-preview" style="display:none;">
+        <label class="upload-btn" for="photoFile">Choose photo</label>
+        <input type="file" id="photoFile" accept="image/*">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn danger" id="deleteBtn" style="display:none;">Delete</button>
+      <button class="btn secondary" id="cancelBtn">Cancel</button>
+      <button class="btn primary" id="saveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <h2>Settings & Sync</h2>
+    <div class="settings-field">
+      <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Google Sheets sync URL</label>
+      <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <div class="settings-help">
+      Paste the Web App URL from your Google Apps Script deployment here. Enter the
+      <strong>same URL</strong> on your phone and computer to keep your sauce
+      ratings in sync. See <code>SETUP_INSTRUCTIONS.md</code> for how to create it
+      (it only takes a couple of minutes and is completely free).
+    </div>
+    <div class="status-line" id="settingsStatus">Not connected — running in local-only mode.</div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="settingsCancel">Close</button>
+      <button class="btn primary" id="settingsSave">Save & Sync</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'sauceTracker.sauces.v1';
+  const URL_KEY = 'sauceTracker.apiUrl';
+
+  let sauces = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  let apiUrl = localStorage.getItem(URL_KEY) || '';
+  let currentFilter = 'all';
+  let currentSort = 'recent';
+  let searchTerm = '';
+  let editingId = null;
+  let pendingPhoto = null; // base64 string while editing
+
+  const grid = document.getElementById('grid');
+  const emptyState = document.getElementById('emptyState');
+  const syncBanner = document.getElementById('syncBanner');
+
+  function uuid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sauces));
+  }
+
+  function showBanner(msg, isError) {
+    syncBanner.textContent = msg;
+    syncBanner.className = 'sync-banner show' + (isError ? ' error' : '');
+    setTimeout(() => syncBanner.classList.remove('show'), 4000);
+  }
+
+  // ---------- Rendering ----------
+  function starsHtml(rating) {
+    let html = '<span class="stars">';
+    for (let i = 1; i <= 5; i++) {
+      html += i <= rating ? '★' : '<span class="empty">★</span>';
+    }
+    html += '</span>';
+    return html;
+  }
+
+  function heatHtml(heat) {
+    heat = heat || 0;
+    if (heat <= 0) return '';
+    let html = '<span class="heat-row">';
+    for (let i = 0; i < heat; i++) html += '🌶️';
+    html += '</span>';
+    return html;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function render() {
+    let list = sauces.slice();
+
+    if (currentFilter !== 'all') {
+      list = list.filter(s => s.type === currentFilter);
+    }
+    if (searchTerm) {
+      const t = searchTerm.toLowerCase();
+      list = list.filter(s =>
+        (s.name || '').toLowerCase().includes(t) ||
+        (s.notes || '').toLowerCase().includes(t)
+      );
+    }
+
+    list.sort((a, b) => {
+      if (currentSort === 'rating') return (b.rating || 0) - (a.rating || 0);
+      if (currentSort === 'heat') return (b.heat || 0) - (a.heat || 0);
+      if (currentSort === 'name') return (a.name || '').localeCompare(b.name || '');
+      // recent
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+
+    grid.innerHTML = '';
+    emptyState.style.display = list.length === 0 ? 'block' : 'none';
+
+    list.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.id = s.id;
+
+      const photoHtml = s.photo
+        ? `<img class="card-photo" src="${s.photo}">`
+        : `<div class="card-photo placeholder">${s.type === 'Hot Sauce' ? '🌶️' : '🍖'}</div>`;
+
+      const badgeClass = s.type === 'Hot Sauce' ? 'hot' : 'bbq';
+
+      card.innerHTML = `
+        ${photoHtml}
+        <div class="card-body">
+          <div class="card-title-row">
+            <div class="card-title">${escapeHtml(s.name)}</div>
+            <div class="badge ${badgeClass}">${s.type === 'Hot Sauce' ? 'Hot Sauce' : 'BBQ'}</div>
+          </div>
+          ${starsHtml(s.rating || 0)}
+          ${heatHtml(s.heat)}
+          ${s.notes ? `<div class="notes-preview">${escapeHtml(s.notes)}</div>` : ''}
+        </div>
+      `;
+      card.addEventListener('click', () => openEdit(s.id));
+      grid.appendChild(card);
+    });
+  }
+
+  // ---------- Filters / sort / search ----------
+  document.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      render();
+    });
+  });
+
+  document.getElementById('sortSelect').addEventListener('change', e => {
+    currentSort = e.target.value;
+    render();
+  });
+
+  document.getElementById('searchInput').addEventListener('input', e => {
+    searchTerm = e.target.value;
+    render();
+  });
+
+  // ---------- Edit modal ----------
+  const editOverlay = document.getElementById('editOverlay');
+  const modalTitle = document.getElementById('modalTitle');
+  const fieldName = document.getElementById('fieldName');
+  const fieldNotes = document.getElementById('fieldNotes');
+  const ratingInput = document.getElementById('ratingInput');
+  const heatInput = document.getElementById('heatInput');
+  const photoPreview = document.getElementById('photoPreview');
+  const photoFile = document.getElementById('photoFile');
+  const deleteBtn = document.getElementById('deleteBtn');
+  let currentType = 'BBQ';
+  let currentRating = 0;
+  let currentHeat = 0;
+
+  function setStars(container, val, filledClass) {
+    container.querySelectorAll('span').forEach(s => {
+      s.classList.toggle('filled', parseInt(s.dataset.val) <= val);
+    });
+  }
+
+  ratingInput.querySelectorAll('span').forEach(s => {
+    s.addEventListener('click', () => {
+      currentRating = parseInt(s.dataset.val);
+      setStars(ratingInput, currentRating);
+    });
+  });
+
+  heatInput.querySelectorAll('span').forEach(s => {
+    s.addEventListener('click', () => {
+      currentHeat = parseInt(s.dataset.val);
+      setStars(heatInput, currentHeat);
+    });
+  });
+
+  document.querySelectorAll('.type-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentType = btn.dataset.type;
+      document.querySelectorAll('.type-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  function openAdd() {
+    editingId = null;
+    modalTitle.textContent = 'Add Sauce';
+    fieldName.value = '';
+    fieldNotes.value = '';
+    currentType = 'BBQ';
+    currentRating = 0;
+    currentHeat = 0;
+    pendingPhoto = null;
+    photoFile.value = '';
+    photoPreview.style.display = 'none';
+    document.querySelectorAll('.type-toggle button').forEach(b => b.classList.toggle('active', b.dataset.type === 'BBQ'));
+    setStars(ratingInput, 0);
+    setStars(heatInput, 0);
+    deleteBtn.style.display = 'none';
+    editOverlay.classList.add('show');
+  }
+
+  function openEdit(id) {
+    const s = sauces.find(x => x.id === id);
+    if (!s) return;
+    editingId = id;
+    modalTitle.textContent = 'Edit Sauce';
+    fieldName.value = s.name || '';
+    fieldNotes.value = s.notes || '';
+    currentType = s.type || 'BBQ';
+    currentRating = s.rating || 0;
+    currentHeat = s.heat || 0;
+    pendingPhoto = s.photo || null;
+    photoFile.value = '';
+    if (pendingPhoto) {
+      photoPreview.src = pendingPhoto;
+      photoPreview.style.display = 'block';
+    } else {
+      photoPreview.style.display = 'none';
+    }
+    document.querySelectorAll('.type-toggle button').forEach(b => b.classList.toggle('active', b.dataset.type === currentType));
+    setStars(ratingInput, currentRating);
+    setStars(heatInput, currentHeat);
+    deleteBtn.style.display = 'inline-block';
+    editOverlay.classList.add('show');
+  }
+
+  function closeEdit() {
+    editOverlay.classList.remove('show');
+  }
+
+  document.getElementById('addBtn').addEventListener('click', openAdd);
+  document.getElementById('cancelBtn').addEventListener('click', closeEdit);
+  editOverlay.addEventListener('click', e => { if (e.target === editOverlay) closeEdit(); });
+
+  photoFile.addEventListener('change', () => {
+    const file = photoFile.files[0];
+    if (!file) return;
+    compressImage(file, img => {
+      pendingPhoto = img;
+      photoPreview.src = img;
+      photoPreview.style.display = 'block';
+    });
+  });
+
+  function compressImage(file, callback) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 320;
+        let { width, height } = img;
+        if (width > height && width > maxDim) {
+          height = Math.round(height * (maxDim / width));
+          width = maxDim;
+        } else if (height > maxDim) {
+          width = Math.round(width * (maxDim / height));
+          height = maxDim;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        callback(canvas.toDataURL('image/jpeg', 0.55));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    const name = fieldName.value.trim();
+    if (!name) {
+      fieldName.focus();
+      return;
+    }
+    const now = new Date().toISOString();
+    if (editingId) {
+      const s = sauces.find(x => x.id === editingId);
+      s.name = name;
+      s.type = currentType;
+      s.rating = currentRating;
+      s.heat = currentHeat;
+      s.notes = fieldNotes.value.trim();
+      s.photo = pendingPhoto || '';
+      s.updatedAt = now;
+      syncOne('update', s);
+    } else {
+      const s = {
+        id: uuid(),
+        name,
+        type: currentType,
+        rating: currentRating,
+        heat: currentHeat,
+        notes: fieldNotes.value.trim(),
+        photo: pendingPhoto || '',
+        createdAt: now,
+        updatedAt: now
+      };
+      sauces.unshift(s);
+      syncOne('add', s);
+    }
+    save();
+    render();
+    closeEdit();
+  });
+
+  deleteBtn.addEventListener('click', () => {
+    if (!editingId) return;
+    if (!confirm('Delete this sauce?')) return;
+    const id = editingId;
+    sauces = sauces.filter(x => x.id !== id);
+    save();
+    render();
+    closeEdit();
+    syncOne('delete', { id });
+  });
+
+  // ---------- Settings ----------
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  const apiUrlInput = document.getElementById('apiUrlInput');
+  const settingsStatus = document.getElementById('settingsStatus');
+
+  function refreshSettingsStatus() {
+    if (apiUrl) {
+      settingsStatus.textContent = 'Connected — syncing with your Google Sheet.';
+    } else {
+      settingsStatus.textContent = 'Not connected — running in local-only mode (this device only).';
+    }
+  }
+
+  document.getElementById('settingsBtn').addEventListener('click', () => {
+    apiUrlInput.value = apiUrl;
+    refreshSettingsStatus();
+    settingsOverlay.classList.add('show');
+  });
+  document.getElementById('settingsCancel').addEventListener('click', () => settingsOverlay.classList.remove('show'));
+  settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) settingsOverlay.classList.remove('show'); });
+
+  document.getElementById('settingsSave').addEventListener('click', () => {
+    apiUrl = apiUrlInput.value.trim();
+    localStorage.setItem(URL_KEY, apiUrl);
+    refreshSettingsStatus();
+    if (apiUrl) {
+      fullSync();
+    }
+    settingsOverlay.classList.remove('show');
+  });
+
+  // ---------- Sync with Google Sheets ----------
+  function syncOne(action, sauce) {
+    if (!apiUrl) return;
+    const body = action === 'delete' ? { action, id: sauce.id } : { action, sauce };
+    fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body)
+    }).then(r => r.json()).then(res => {
+      if (!res.ok) showBanner('Sync error: ' + (res.error || 'unknown'), true);
+    }).catch(() => showBanner('Could not reach sync server — saved locally.', true));
+  }
+
+  function fullSync() {
+    if (!apiUrl) return;
+    showBanner('Syncing…', false);
+    fetch(apiUrl).then(r => r.json()).then(res => {
+      if (!res.ok) {
+        showBanner('Sync error: ' + (res.error || 'unknown'), true);
+        return;
+      }
+      const remote = (res.sauces || []).map(normalizeRemote);
+      mergeRemote(remote);
+      save();
+      render();
+      showBanner('Synced ✓', false);
+    }).catch(() => showBanner('Could not reach sync server — showing local data.', true));
+  }
+
+  function normalizeRemote(r) {
+    return {
+      id: String(r.id),
+      name: r.name || '',
+      type: r.type || 'BBQ',
+      rating: Number(r.rating) || 0,
+      heat: Number(r.heat) || 0,
+      notes: r.notes || '',
+      photo: r.photo || '',
+      createdAt: r.createdAt || '',
+      updatedAt: r.updatedAt || r.createdAt || ''
+    };
+  }
+
+  // Merge remote + local by id, keeping whichever was updated more recently.
+  function mergeRemote(remote) {
+    const byId = {};
+    sauces.forEach(s => byId[s.id] = s);
+    remote.forEach(r => {
+      const local = byId[r.id];
+      if (!local) {
+        byId[r.id] = r;
+      } else {
+        const localTime = new Date(local.updatedAt || local.createdAt || 0).getTime();
+        const remoteTime = new Date(r.updatedAt || r.createdAt || 0).getTime();
+        if (remoteTime > localTime) byId[r.id] = r;
+      }
+    });
+    // Push any local-only items (not yet on remote) back up
+    const remoteIds = new Set(remote.map(r => r.id));
+    Object.values(byId).forEach(s => {
+      if (!remoteIds.has(s.id)) syncOne('add', s);
+    });
+    sauces = Object.values(byId);
+  }
+
+  document.getElementById('syncBtn').addEventListener('click', fullSync);
+
+  // ---------- Init ----------
+  render();
+  if (apiUrl) fullSync();
+})();
+</script>
+</body>
+</html>
